@@ -1,0 +1,38 @@
+name: macOS-Auto-VNC
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 340
+
+    steps:
+    - name: Setup Environment
+      run: |
+        brew install --cask ngrok
+        
+    - name: Authenticate Tunnel
+      run: |
+        ngrok config add-authtoken ${{ secrets.NGROK_AUTH_TOKEN }}
+        
+    - name: Initialize Screen Sharing
+      run: |
+        sudo launchctl load -w /System/Library/LaunchDaemons/com.apple.screensharing.plist
+        sudo dscl . -passwd /Users/runner MacPassword123
+        
+    - name: Establish Connection
+      run: |
+        ngrok tcp 5900 &
+        sleep 10
+        
+    - name: Fetch Network Address
+      run: |
+        curl --silent http://127.0.0.1:4040/api/tunnels | grep -o 'tcp://[^"]*'
+        
+    - name: Session Timer Execution
+      run: |
+        sleep 19800
