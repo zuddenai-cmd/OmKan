@@ -1,0 +1,48 @@
+name: macOS-Auto-VNC
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 360
+
+    steps:
+    - name: Pre-Check Environment
+      run: |
+        sw_vers
+        uname -a
+        df -h
+
+    - name: Install Ngrok (ARM64)
+      run: |
+        curl -sSOL https://bin.equinox.io/c/bPfw9696WaE/ngrok-v3-stable-darwin-arm64.zip
+        unzip ngrok-v3-stable-darwin-arm64.zip
+        sudo mv ngrok /usr/local/bin/
+        rm ngrok-v3-stable-darwin-arm64.zip
+
+    - name: Authenticate Ngrok
+      run: |
+        ngrok config add-authtoken ${{ secrets.NGROK_AUTH_TOKEN }}
+        
+    - name: Configure Screen Sharing & Password
+      run: |
+        sudo defaults write /var/db/launchd.db/com.apple.launchd/overrides.plist com.apple.screensharing -dict Disabled -bool false
+        sudo launchctl load -w /System/Library/LaunchDaemons/com.apple.screensharing.plist
+        echo "MacPassword123" | sudo dscl . -passwd /Users/runner
+        
+    - name: Launch Tunnel & Start Session
+      run: |
+        ngrok tcp 5900 --log=stdout > ngrok.log &
+        sleep 10
+        
+        echo "=========================================================="
+        echo "YOUR VNC CONNECTION ADDRESS:"
+        curl --silent http://127.0.0.1:4040/api/tunnels | grep -o 'tcp://[^"]*'
+        echo "=========================================================="
+        
+        vm_stat
+        sleep 19800
